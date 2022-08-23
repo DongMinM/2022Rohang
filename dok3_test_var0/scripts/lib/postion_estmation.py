@@ -42,6 +42,9 @@ class ArUcoPosEstimator:
         x = {}
         y = {}
         z = {}
+        marker_size = {'90' : 1665,
+                       '100' : 850}
+
         image = imutils.resize(image, width=resize_width)
     
 
@@ -65,7 +68,7 @@ class ArUcoPosEstimator:
 
                     (topLeft, topRight, bottomRight, bottomLeft) = corner
 
-                    rvec , tvec[ID], _ = cv2.aruco.estimatePoseSingleMarkers(markerCorner,13, cam_mtx, dist_coeff)
+                    rvec , tvec[ID], _ = cv2.aruco.estimatePoseSingleMarkers(markerCorner,marker_size[ID], cam_mtx, dist_coeff)
                     
                     x[ID] = tvec[ID][0][0][0]
                     

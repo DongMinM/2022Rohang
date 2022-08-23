@@ -25,14 +25,10 @@ class LandingmarkerDetector:
                 raise
             
             try:
-                
-                body_pos = self.traj.ned2xyz(self.datahub.posvel_ned[:3])                
-                
+                            
 
-                marker_pos[0] = body_pos[0] + x[95]*0.002
-                marker_pos[1] = body_pos[1] - y[95]*0.002
-                # marker_pos[0] = 0
-                # marker_pos[1] = 0
+                marker_pos[0] = x[95]*0.002
+                marker_pos[1] = y[95]*0.002
                 marker_pos[2] = 0
 
                 marker_pos = self.traj.xyz2ned(marker_pos)

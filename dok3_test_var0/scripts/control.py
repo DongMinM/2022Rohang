@@ -102,12 +102,18 @@ class Controller:
     async def park(self):
 
         print("Action : park ...")
-        
-        marker_pos = LandingmarkerDetector.detect(90)
-        # marker_pos = LandingmarkerDetector.detect(100)
-        wp = np.array([])
+        height = self.datahub.posvel_ned[2]
 
-        await self.traj.trajectory_tracking(marker_pos,wp,1)
+        marker_pos_from_cam_center = np.array([0,0,0])
+        
+        if height > 5:
+            marker_pos_from_cam_center = LandingmarkerDetector.detect(ID_aim = 90)
+
+        elif height <= 5:
+            marker_pos_from_cam_center = LandingmarkerDetector.detect(ID_aim = 100)
+
+
+
         await self.drone.action.land()
 
         self.datahub.state = "Land"

@@ -29,7 +29,7 @@ class SensorHub:
 
         rospy.Subscriber("/waypoints_input", Float32MultiArray, self.waypoints_updater)
         rospy.Subscriber("/bottom_cam/bottom_image_raw/compressed",CompressedImage,self.img_updater)
-
+        # rospy.Subscriber('/camera/image_mono/compressed',CompressedImage,self.img_updater)
 
 
 

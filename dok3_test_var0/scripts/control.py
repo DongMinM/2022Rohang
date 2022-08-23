@@ -3,7 +3,7 @@ import asyncio
 import mavsdk
 import time
 from lib.trajectory_tracking import TrajectoryTracker
-from lib.postion_estmation   import ArUcoPosEstimator
+from landing_conroller       import LandingmarkerDetector
 from mavsdk.offboard    import OffboardError,\
                                VelocityNedYaw,\
                                PositionNedYaw,\
@@ -19,7 +19,7 @@ class Controller:
         self.delt = datahub.delt
 
         self.traj = TrajectoryTracker(self.drone,self.datahub)
-        self.marker = ArUcoPosEstimator()
+        self.marker = LandingmarkerDetector(self.datahub,self.traj)
 
 
 
@@ -103,40 +103,12 @@ class Controller:
 
         print("Action : park ...")
         
-        cnt = 0
+        marker_pos = LandingmarkerDetector.detect(90)
+        # marker_pos = LandingmarkerDetector.detect(100)
+        wp = np.array([])
 
-        while cnt < 30:
-            resize_width = np.shape(self.datahub.img_bottom)[1]
-
-            # Save your OpenCV2 image as a jpeg 
-            ids,x,y,z = self.marker.run(self.datahub.img_bottom,self.cam_mtx,self.dist_coeff,"DICT_5X5_1000",resize_width)
-            try:
-                
-                body_pos = self.traj.ned2xyz(self.datahub.posvel_ned[:3])                
-                
-                marker_pos = np.zeros((6,))
-
-                marker_pos[0] = body_pos[0] + x[95]*0.002
-                marker_pos[1] = body_pos[1] - y[95]*0.002
-                # marker_pos[0] = 0
-                # marker_pos[1] = 0
-                marker_pos[2] = 0
-
-                marker_pos = self.traj.xyz2ned(marker_pos)
-
-                wp = np.array([])
-
-                print(marker_pos[:3])
-
-                await self.traj.trajectory_tracking(marker_pos,wp,1)
-                await self.drone.action.land()
-                break
-
-            except:
-
-                await asyncio.sleep(0.1)
-                time.sleep(0.1)
-                cnt += 1
+        await self.traj.trajectory_tracking(marker_pos,wp,1)
+        await self.drone.action.land()
 
         self.datahub.state = "Land"
         self.datahub.action = "land"

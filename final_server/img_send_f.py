@@ -131,7 +131,7 @@ class ClientSocket:
 
                     elif detected_hier[i][2] == -1 and detected[i]-1 == detected_hier[i][3]:
                         print('detected more then two but among them are marker(one)')
-                        self.serLabel(frame,detected_pts[i])
+                        self.setLabel(frame,detected_pts[i])
                         break
 
                     elif i == len(detected)-1 :
@@ -148,7 +148,7 @@ class ClientSocket:
 
 
     # 십자가로 인식된 마커 --> 붉은색 박스
-    def setLabel(self,img, pts, label):
+    def setLabel(self,img, pts):
         # 사각형 좌표 받아오기
         (x, y, w, h) = cv2.boundingRect(pts)
 

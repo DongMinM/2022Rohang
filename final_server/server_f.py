@@ -9,7 +9,7 @@ import base64
 
 import rospy
 from sensor_msgs.msg import CompressedImage
-from std_msgs.msg import String
+from std_msgs.msg import String, Float32MultiArray
 
 import signal
 import os
@@ -33,20 +33,20 @@ class ServerSocket:
         self.TCP_IP = ip
         self.TCP_PORT = port
 
-        self.img_client = 0
+        self.img_client = ' '
 
         rospy.init_node('server')
 
         # Set queues
-        self.isAuto_q   = Queue()
-        self.wayPoint_q = Queue()
-        self.gps_q      = Queue()
-        self.imu_q      = Queue()
-        self.speed_q    = Queue()
-        self.state_q    = Queue()
-        self.image_q    = Queue()
+        self.isAuto_q   = Queue(maxsize=2)
+        self.wayPoint_q = Queue(maxsize=2)
+        self.gps_q      = Queue(maxsize=2)
+        self.imu_q      = Queue(maxsize=2)
+        self.speed_q    = Queue(maxsize=2)
+        self.state_q    = Queue(maxsize=2)
+        self.image_q    = Queue(maxsize=2)
 
-        # callback threads start
+        # server socket open ( start )
         threading.Thread(target = self.pub_isAuto).start()
         threading.Thread(target = self.pub_wayPoint).start()
         threading.Thread(target = self.pub_gps).start()
@@ -54,14 +54,14 @@ class ServerSocket:
         threading.Thread(target = self.pub_speed).start()
         threading.Thread(target = self.pub_state).start()
         threading.Thread(target = self.pub_image).start()
+        self.lock = threading.Lock()
 
-        # server socket open (Main thread)
         self.socketOpen()
 
     ## close server socket
     def socketClose(self):
         self.sock.close()
-        print(u'Server socket [ TCP_IP: ' + self.TCP_IP + ', TCP_PORT: ' + str(self.TCP_PORT) + ' ] is closed')
+        print(u'Server socket is closed')
 
     ## open server socket
     def socketOpen(self):
@@ -70,14 +70,13 @@ class ServerSocket:
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)         # server socket option
         self.sock.bind((self.TCP_IP, self.TCP_PORT))                            # server socket bind
         self.sock.listen(2)                                                     # number of client can be access at the same time (but not work for this code)
-        print(u'Server socket [ TCP_IP: ' + self.TCP_IP + ', TCP_PORT: ' + str(self.TCP_PORT) + ' ] is opened')
+        print(u'Server socket is opened')
 
         # accept every client, any time
         while True:
             try:
                 client_socket, addr = self.sock.accept()
                 print('접속 : ',(addr))
-
                 # thread that receive datas
                 threading.Thread(target=self.receivedatas, args =(client_socket,addr)).start()
 
@@ -95,45 +94,38 @@ class ServerSocket:
 
                 # isAuto (a)
                 if header == 97:
-                        if not self.isAuto_q.empty():
-                            self.isAuto_q.get()
-                        self.isAuto_q.put(stringData)
+                    self.q_clear(self.isAuto_q)
+                    self.isAuto_q.put(stringData)
 
                 # wayPoint (w)
                 elif header == 119:
-                    if not self.wayPoint_q.empty():
-                        self.wayPoint_q.get()
+                    self.q_clear(self.wayPoint_q)
                     self.wayPoint_q.put(stringData)
 
                 # gps  (g)
                 elif header == 103:
-                    if not self.gps_q.empty():
-                        self.gps_q.get()
+                    self.q_clear(self.gps_q)
                     self.gps_q.put(stringData)
 
                 # imu (i)
                 elif header == 105:
-                    if not self.imu_q.empty():
-                        self.image_q.get()
+                    self.q_clear(self.imu_q)
                     self.imu_q.put(stringData)
 
                 # speed (s)
                 elif header == 115:
-                    if not self.speed_q.empty():
-                        self.speed_q.get()
+                    self.q_clear(self.speed_q)
                     self.speed_q.put(stringData)
 
                 # state (t)
                 elif header == 116:
-                    if not self.state_q.empty():
-                        self.state_q.get()
+                    self.q_clear(self.state_q)
                     self.state_q.put(stringData)
 
                 # image
                 else:
-                    if not self.image_q.empty():
-                        self.image_q.get()
                     self.img_client = addr
+                    self.q_clear(self.image_q)
                     self.image_q.put(stringData)
 
         ## exception / client is out
@@ -142,7 +134,7 @@ class ServerSocket:
                 ## if img_client is out, stop img_show
                 if addr == self.img_client:
                     self.img_update = 0
-                print('이미지 커넥션 종료 : ',(addr))
+                    print('이미지 커넥션 종료 : ',(addr))
                 time.sleep(1)
 
 
@@ -156,6 +148,12 @@ class ServerSocket:
             count -= len(newbuf)
         return buf
 
+    ## clear queue when queue is not empty -- for realTime
+    def q_clear(self,queue):
+        self.lock.acquire()
+        if not queue.empty():
+            queue.get()
+        self.lock.release()
 
     def pub_isAuto(self):
         pub_isAuto = rospy.Publisher('isAuto',String, queue_size=1)
@@ -179,6 +177,8 @@ class ServerSocket:
         pub_latitude = rospy.Publisher('latitude',String, queue_size=1)
         pub_longitude = rospy.Publisher('longitude',String, queue_size=1)
         pub_altitude = rospy.Publisher('altitude',String, queue_size=1)
+        pub2saver = rospy.Publisher('gps',String,queue_size=1)
+        gps = Float32MultiArray()
         while True:
             gps_data = self.gps_q.get()
             gps_data = gps_data.decode('utf8')
@@ -189,6 +189,8 @@ class ServerSocket:
             pub_latitude.publish(gps_data[2])
             pub_longitude.publish(gps_data[3])
             pub_altitude.publish(gps_data[4])
+            gps.data = np.array(gps_data[1:])
+            pub2saver.publish(gps)
 
     def pub_imu(self):
         pub_roll = rospy.Publisher('roll',String, queue_size=1)
@@ -232,14 +234,19 @@ class ServerSocket:
 
             msg.data = np.array(cv2.imencode('.jpg', frame)[1]).tostring()
             pub_image.publish(msg)
+            print('123')
 
 def handler(signum, frame):
     print('**Server Killed**')
     os.system("sudo kill -9 `sudo lsof -t -i:8080`")
-
 
 # 9502 -> 8080
 if __name__ == "__main__":
     signal.signal(signal.SIGTSTP, handler)
     server = ServerSocket('192.168.0.37', 8080)
     
+
+
+
+
+

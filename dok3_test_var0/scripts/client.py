@@ -43,6 +43,7 @@ class Client:
             imu = 'i,'+str(round(self.datahub.attitude_eular[0],2))+','+str(round(self.datahub.attitude_eular[1],2))+','+str(round(self.datahub.attitude_eular[2],2))
             gps = self.parsingGPS()
             heading = 'h'+str(self.datahub.heading_wp)
+            jps     = 'j'+str(self.datahub.jps_map[:-2])
             
             self.send(isAuto)
             self.send(wayPoint)
@@ -51,6 +52,8 @@ class Client:
             self.send(imu)
             self.send(gps)
             self.send(heading)
+            self.send(jps)
+
             time.sleep(0.1)
 
     def send(self,stringData):

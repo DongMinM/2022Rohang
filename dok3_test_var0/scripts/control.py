@@ -3,7 +3,7 @@ import asyncio
 import mavsdk
 import time
 from lib.trajectory_tracking import TrajectoryTracker
-from landing_conroller       import LandingmarkerDetector
+from lib.postion_estmation   import ArUcoPosEstimator
 from mavsdk.offboard    import OffboardError,\
                                VelocityNedYaw,\
                                PositionNedYaw,\
@@ -19,7 +19,7 @@ class Controller:
         self.delt = datahub.delt
 
         self.traj = TrajectoryTracker(self.drone,self.datahub)
-        self.marker = LandingmarkerDetector(self.datahub,self.traj)
+        self.marker = ArUcoPosEstimator()
 
 
 
@@ -105,16 +105,13 @@ class Controller:
         height = self.datahub.posvel_ned[2]
 
         marker_pos_from_cam_center = np.array([0,0,0])
-        
+        resize_width = resize_width = np.shape(self.datahub.img_bottom)[1]
         if height > 5:
-            marker_pos_from_cam_center = LandingmarkerDetector.detect(ID_aim = 90)
+            marker_pos_from_cam_center = self.marker.run(90,self.datahub.img_bottom,self.datahub.cam_max,self.datahub.dist_coeff,"DICT_5X5_1000",resize_width)
 
         elif height <= 5:
-            marker_pos_from_cam_center = LandingmarkerDetector.detect(ID_aim = 100)
+            marker_pos_from_cam_center = self.marker.run(90,self.datahub.img_bottom,self.datahub.cam_max,self.datahub.dist_coeff,"DICT_5X5_1000",resize_width)
 
-
-
-        await self.drone.action.land()
 
         self.datahub.state = "Land"
         self.datahub.action = "land"

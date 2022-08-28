@@ -25,6 +25,7 @@ class DataHub:
 
         self.v_mean = 1
 
+        self.heading_wp =  0
         ''' LiDAR Processor '''
 
         self.voxel_size = voxel_size
@@ -37,11 +38,9 @@ class DataHub:
 
         ''' Image Procesor '''
 
-        self.cam_mtx = [[347.344668, 0.00000000, 317.843671],
-                        [0.00000000, 346.900900, 255.698665],
-                        [0.00000000, 0.00000000, 1.00000000]]
+        self.cam_mtx = bottom_cam_mtx
         
-        self.dist_coeff = [[-0.279997, 0.058631, 0.002795, -0.000103, 0.000000]]
+        self.dist_coeff = bottom_dist_coeff
 
 
 

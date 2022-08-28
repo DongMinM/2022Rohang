@@ -62,7 +62,6 @@ class ArUcoPosEstimator:
 
                 if ID == ID_aim:
 
-                    centers[ID]= [-1, -1]
 
                     corner = markerCorner.reshape((4, 2))
 
@@ -90,7 +89,6 @@ class ArUcoPosEstimator:
 
 
                     centers[ID] = (cX, cY)
-                    centers[ID]= [-1, -1]
                     corner = markerCorner.reshape((4, 2))
 
                     (topLeft, topRight, bottomRight, bottomLeft) = corner

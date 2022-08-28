@@ -42,8 +42,8 @@ class ArUcoPosEstimator:
         x = {}
         y = {}
         z = {}
-        marker_size = {90 : 1665,
-                       100 : 850}
+        marker_size = {90 : 166.5,
+                       100 : 85.0}
 
         image = imutils.resize(image, width=resize_width)
     

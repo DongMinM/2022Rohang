@@ -38,7 +38,7 @@ class ClientSocket:
 
         # ros thread (Sub thread 2)
         rospy.init_node('imgSender')
-        rospy.Subscriber('/camera/image_mono/compressed',CompressedImage,self.img_callback,queue_size=1)
+        rospy.Subscriber('/camera_up/image_mono/compressed',CompressedImage,self.img_callback,queue_size=1)
         rospy.spin()
 
 
@@ -67,7 +67,7 @@ class ClientSocket:
         # decode to cv2 image
         frame = cv2.imdecode(frame,cv2.COLOR_RGB2GRAY)
         # resize
-        frame = cv2.resize(frame,(640,360))
+#        frame = cv2.resize(frame,(640,360))
         # detect marker
         self.detect_marker(frame)
 
@@ -84,7 +84,7 @@ class ClientSocket:
 
             # detect the contours on the binary image using cv2.CHAIN_APPROX_NONE
             contours, hierarchy = cv2.findContours(edges.copy(), mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_NONE)
-            
+
 
             n = 0
             detected = []
@@ -100,42 +100,39 @@ class ClientSocket:
                 approx = cv2.approxPolyDP(pts, cv2.arcLength(pts,True)*0.02,True)
                 #근사화 결과 점 개수
                 vtc = len(approx)
-                # print(f'꼭짓점 수: {vtc}')
 
                 #12각형 -> 십자 마크
                 if vtc == 12:
                       detected.append(n)
                       detected_pts.append(pts)
                       detected_hier.append(hierarchy[0,n])
-                      print(n, hierarchy[0,n])
-                      self.setLabel2(frame,pts)
 
                 n+=1
 
             if len(detected) == 2:
                 if detected[0] + 1 == detected[1]:
-                    print('marker detected')
+#                    print('marker detected')
                     self.setLabel(frame,detected_pts[0])
 
             elif len(detected) == 1:
                 if detected_hier[0][2] == -1 and detected[0]-1 == detected_hier[0][3] :
-                    print('detected one but it is marker')
+#                    print('detected one but it is marker')
                     self.setLabel(frame,detected_pts[0])
 
             elif len(detected) > 2:
                 for i in range(len(detected)-1) :
                     if detected[i] + 1 == detected[i+1]:
-                        print('detected more then two but among them are marker')
+#                        print('detected more then two but among them are marker')
                         self.setLabel(frame,detected_pts[i])
                         break
 
                     elif detected_hier[i][2] == -1 and detected[i]-1 == detected_hier[i][3]:
-                        print('detected more then two but among them are marker(one)')
+#                        print('detected more then two but among them are marker(one)')
                         self.setLabel(frame,detected_pts[i])
                         break
 
                     elif i == len(detected)-1 :
-                        print('detected more then two but among them are marker(one)')
+#                        print('detected more then two but among them are marker(one)')
                         if detected_hier[i+1][2] == -1 and detected[i+1]-1 == detected_hier[i+1][3]:
                             self.setLabel(frame,detected_pts[i+1])
 
@@ -156,31 +153,21 @@ class ClientSocket:
         y = int(y)
         w = int(w)
         h = int(h)
-        cv2.rectangle(img, (x,y),(x+w,y+h), (0 , 0, 255), 5)
-
-    # 걸러지는 이미지 --> 파란색 박스
-    def setLabel2(self,img, pts):
-        # 사각형 좌표 받아오기
-        (x, y, w, h) = cv2.boundingRect(pts)
-
-        x = int(x)
-        y = int(y)
-        w = int(w)
-        h = int(h)
-        cv2.rectangle(img, (x,y),(x+w,y+h), (255 , 0, 0), 5)
+        cv2.rectangle(img, (x,y),(x+w,y+h), (0 , 0, 255), 1)
 
 
     def img_pub(self):
         while True:
 
             frame = self.detected_frame.get()
-            encode_param=[int(cv2.IMWRITE_JPEG_QUALITY),20]
-            result, imgencode = cv2.imencode('.jpg', frame, encode_param)
-            img = np.array(imgencode)
+            resize_frame = cv2.resize(frame, dsize=(160*5, 90*5), interpolation=cv2.INTER_AREA)
+            encode_param=[int(cv2.IMWRITE_JPEG_QUALITY),25]
+            result, img = cv2.imencode('.jpg', resize_frame, encode_param)
 
             stringData = base64.b64encode(img)
             length = str(len(stringData))
 
+            print(sys.getsizeof(stringData))
             self.sock.sendall(length.encode('utf-8').ljust(64))
             self.sock.send(stringData)
 
@@ -199,14 +186,6 @@ def handler(signum, frame):
 if __name__ == "__main__":
     main()
     signal.signal(signal.SIGTSTP, handler)
-
-
-
-
-
-
-
-
 
 
 

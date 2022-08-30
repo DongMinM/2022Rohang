@@ -62,7 +62,7 @@ class Client:
         self.sock.send(stringData.encode('utf-8'))
 
     def parsingisAuto(self,mode):
-        if mode == 'OFFBOARD' or 'LAND':
+        if mode == 'OFFBOARD' or mode == 'LAND':
             return 'a1'
         else:
             return 'a0'

@@ -29,16 +29,14 @@ thread 3 : show image
 class ServerSocket:
 
     def __init__(self, ip, port):
-        ## server ip and port
+        ## 서버 ip & port
         self.TCP_IP = ip
         self.TCP_PORT = port
-
-        self.img_client = ' '
 
         rospy.init_node('server')
         self.br = CvBridge()
 
-        # Set queues
+        # 변수 초기화
         self.isAuto_q   = Queue(maxsize=2)
         self.wayPoint_q = Queue(maxsize=2)
         self.gps_q      = Queue(maxsize=2)
@@ -49,7 +47,7 @@ class ServerSocket:
         self.head_q     = Queue(maxsize=2)
         self.jpsmap_q      = Queue(maxsize=2)
 
-        # server socket open ( start )
+        # 스레드 시작 ( start )
         threading.Thread(target = self.pub_isAuto).start()
         threading.Thread(target = self.pub_wayPoint).start()
         threading.Thread(target = self.pub_gps).start()
@@ -61,6 +59,7 @@ class ServerSocket:
         threading.Thread(target = self.pub_image).start()
         self.lock = threading.Lock()
 
+        # 소켓 오픈
         self.socketOpen()
 
     ## close server socket
@@ -68,7 +67,8 @@ class ServerSocket:
         self.sock.close()
         print(u'Server socket is closed')
 
-    ## open server socket
+
+    ## 소켓 오픈
     def socketOpen(self):
 
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)           # server socket
@@ -82,11 +82,14 @@ class ServerSocket:
             try:
                 client_socket, addr = self.sock.accept()
                 print('접속 : ',(addr))
-                # thread that receive datas
+
+                # 해당 소켓에 대한 데이터 수신
                 threading.Thread(target=self.receivedatas, args =(client_socket,addr)).start()
 
             except KeyboardInterrupt:
                 self.socketClose()
+
+
 
     ## receive data from client socket
     def receivedatas(self,client_socket,addr):
@@ -99,7 +102,6 @@ class ServerSocket:
 
                 # isAuto (a)
                 if header == 97:
-#                    print(1)
                     self.q_clear(self.isAuto_q)
                     self.isAuto_q.put(stringData)
 
@@ -128,15 +130,17 @@ class ServerSocket:
                     self.q_clear(self.state_q)
                     self.state_q.put(stringData)
 
+                # heading (h)
                 elif header == 104:
                     self.q_clear(self.head_q)
                     self.head_q.put(stringData)
 
+                # jpsmap (j)
                 elif header == 106:
                     self.q_clear(self.jpsmap_q)
                     self.jpsmap_q.put(stringData)
 
-                # image
+                # image (no header)
                 else:
                     self.img_client = addr
                     self.q_clear(self.image_q)
@@ -145,10 +149,7 @@ class ServerSocket:
         ## exception / client is out
         except Exception as e:
                 print(e)
-                ## if img_client is out, stop img_show
-                if addr == self.img_client:
-                    self.img_update = 0
-                    print('이미지 커넥션 종료 : ',(addr))
+                print('커넥션 종료 : ',(addr))
                 time.sleep(1)
 
 
@@ -162,12 +163,15 @@ class ServerSocket:
             count -= len(newbuf)
         return buf
 
-    ## clear queue when queue is not empty -- for realTime
+
+    # 큐 메모리 초기화
     def q_clear(self,queue):
         self.lock.acquire()
         if not queue.empty():
             queue.get()
         self.lock.release()
+
+
 
     def pub_isAuto(self):
         pub_isAuto = rospy.Publisher('isAuto',String, queue_size=1)
@@ -176,6 +180,8 @@ class ServerSocket:
             isAuto = isAuto.decode('utf8')
 #            print(f'ifAuto : {isAuto[1:]}')
             pub_isAuto.publish(isAuto[1:])
+
+
 
     def pub_wayPoint(self):
         pub_wayPoint = rospy.Publisher('wayPoint',String, queue_size=1)
@@ -186,6 +192,8 @@ class ServerSocket:
 #            print(f'Way Point : {wayPoint[1]}')
             pub_wayPoint.publish(wayPoint[1])
 
+
+
     def pub_gps(self):
         pub_gpsTime = rospy.Publisher('gpsTime',String, queue_size=1)
         pub_latitude = rospy.Publisher('latitude',String, queue_size=1)
@@ -193,11 +201,11 @@ class ServerSocket:
         pub_altitude = rospy.Publisher('altitude',String, queue_size=1)
         pub2saver = rospy.Publisher('gps',Float32MultiArray,queue_size=1)
         gps = Float32MultiArray()
+
         while True:
             gps_data = self.gps_q.get()
             gps_data = gps_data.decode('utf8')
             gps_data = gps_data.split(',')
-#            print(f'Gps :{gps_data[1:]}')
 
             pub_gpsTime.publish(gps_data[1])
             pub_latitude.publish(gps_data[2])
@@ -205,6 +213,8 @@ class ServerSocket:
             pub_altitude.publish(gps_data[4])
             gps.data = np.array(gps_data[2:]).astype(float)
             pub2saver.publish(gps)
+
+
 
     def pub_imu(self):
         pub_roll = rospy.Publisher('roll',String, queue_size=1)
@@ -221,6 +231,7 @@ class ServerSocket:
             pub_yaw.publish(imu_data[3])
 
 
+
     def pub_speed(self):
         pub_speed = rospy.Publisher('speed',String,queue_size=1)
         while True:
@@ -229,6 +240,8 @@ class ServerSocket:
 #            print(f'Speed : {speed_data[1:]}')
             pub_speed.publish(speed_data[1:])
 
+
+
     def pub_state(self):
         pub_state = rospy.Publisher('state',String,queue_size=1)
         while True:
@@ -236,6 +249,8 @@ class ServerSocket:
             state_data = state_data.decode('utf8')
 #            print(f'State {state_data[1:]}')
             pub_state.publish(state_data[1:])
+
+
 
     def pub_image(self):
         pub_image = rospy.Publisher('img',CompressedImage,queue_size=1)
@@ -248,8 +263,9 @@ class ServerSocket:
 
             msg.data = np.array(cv2.imencode('.jpg', frame)[1]).tostring()
             pub_image.publish(msg)
-#            print('123')
+
     
+
     def pub_head(self):
         pub_head = rospy.Publisher('heading',String,queue_size=1)
         while True:
@@ -257,6 +273,7 @@ class ServerSocket:
             heading = heading.decode('utf8')
             pub_head.publish(heading[1:])
     
+
 
     def pub_jps(self):
         pub_jpsmap = rospy.Publisher('jps',Image,queue_size=1)
@@ -319,10 +336,6 @@ class ServerSocket:
             img_encode = np.array(cv2.imencode('.png', resized_jps)[1])
             msg = self.br.cv2_to_imgmsg(img_encode)
             pub_jpsmap.publish(msg)
-
-
-
-
 
 
 

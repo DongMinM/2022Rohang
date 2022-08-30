@@ -25,10 +25,7 @@ class Client:
             self.update_datas()
 
         except Exception as e:
-            self.connectCount += 1
-            if self.connectCount == 10:
-                print(u'Connect fail %d times. Exit program'%(self.connectCount))
-                sys.exit()
+
             print(u'Connection %d times fail. Wait 1 sec '%(self.connectCount))
             self.connectServer()
             time.time(1)

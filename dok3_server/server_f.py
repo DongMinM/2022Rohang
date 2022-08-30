@@ -45,7 +45,7 @@ class ServerSocket:
         self.state_q    = Queue(maxsize=2)
         self.image_q    = Queue(maxsize=2)
         self.head_q     = Queue(maxsize=2)
-        self.jpsmap_q      = Queue(maxsize=2)
+        self.jpsmap_q   = Queue(maxsize=2)
 
         # 스레드 시작 ( start )
         threading.Thread(target = self.pub_isAuto).start()

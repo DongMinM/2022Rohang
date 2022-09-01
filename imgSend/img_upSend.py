@@ -8,6 +8,7 @@ import threading
 from queue import Queue
 
 import rospy
+from std_msgs.msg    import Float32MultiArray
 from sensor_msgs.msg import CompressedImage
 from cv_bridge import CvBridge
 
@@ -25,7 +26,7 @@ class ClientSocket:
         # Count image
         self.img_num = 0
 
-        self.x = None
+        self.pub_markerCenter = rospy.Publisher('/marker_detected',Float32MultiArray,queue_size=1)
 
         # Connect to server (Main thread)
         self.connectServer()
@@ -38,7 +39,7 @@ class ClientSocket:
 
         # ros thread (Sub thread 2)
         rospy.init_node('imgSender')
-        rospy.Subscriber('/camera_up/image_mono/compressed',CompressedImage,self.img_callback,queue_size=1)
+        rospy.Subscriber('/camera_up/image_mono/compressed',CompressedImage,self.img_callback,queue_size=2)
         rospy.spin()
 
 
@@ -53,10 +54,7 @@ class ClientSocket:
         except Exception as e:
             print(e)
             self.connectCount += 1
-            if self.connectCount == 10:
-                print(u'Connect fail %d times. exit program'%(self.connectCount))
-                time.time(2)
-                sys.exit()
+            time.sleep(1)
             print(u'%d times try to connect with server'%(self.connectCount))
             self.connectServer()
 
@@ -67,7 +65,8 @@ class ClientSocket:
         # decode to cv2 image
         frame = cv2.imdecode(frame,cv2.COLOR_RGB2GRAY)
         # resize
-#        frame = cv2.resize(frame,(640,360))
+        # frame = cv2.resize(frame,(640,360))
+        print(frame.shape)
         # detect marker
         self.detect_marker(frame)
 
@@ -147,12 +146,17 @@ class ClientSocket:
     # 십자가로 인식된 마커 --> 붉은색 박스
     def setLabel(self,img, pts):
         # 사각형 좌표 받아오기
+        msg = Float32MultiArray()
         (x, y, w, h) = cv2.boundingRect(pts)
 
         x = int(x)
         y = int(y)
         w = int(w)
         h = int(h)
+
+        msg.data = np.array([int(x+0.5*w),int(y+0.5*h)])
+        self.pub_markerCenter.publish(msg)
+
         cv2.rectangle(img, (x,y),(x+w,y+h), (0 , 0, 255), 1)
 
 
@@ -160,7 +164,7 @@ class ClientSocket:
         while True:
 
             frame = self.detected_frame.get()
-            resize_frame = cv2.resize(frame, dsize=(160*5, 90*5), interpolation=cv2.INTER_AREA)
+            resize_frame = cv2.resize(frame, dsize=(160*4, 90*4), interpolation=cv2.INTER_AREA)
             encode_param=[int(cv2.IMWRITE_JPEG_QUALITY),25]
             result, img = cv2.imencode('.jpg', resize_frame, encode_param)
 
